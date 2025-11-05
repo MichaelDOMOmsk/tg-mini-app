@@ -193,33 +193,69 @@
     document.getElementById('reset').onclick = () => update(0);
 
     // Отправка
-     function send(){
+    function toast(msg) {
+    // компактный тост, чтобы видеть, что что-то произошло
+    const t = document.createElement('div');
+    t.textContent = msg;
+    Object.assign(t.style, {
+      position: 'fixed', left: '50%', bottom: '20px', transform: 'translateX(-50%)',
+      background: 'rgba(0,0,0,.8)', color: '#fff', padding: '10px 14px', borderRadius: '12px',
+      fontSize: '14px', zIndex: 99999
+    });
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 1500);
+  }
+
+  function send(){
     const payload = { date: dateStr, count };
     const json = JSON.stringify(payload);
 
-    if (inTG) {
-      // визуальная обратная связь
-      try { tg.MainButton.showProgress(true); } catch(e){}
-      tg.HapticFeedback?.impactOccurred('light');
+    // На всякий случай показываем тост СРАЗУ при клике
+    toast('Отправляю…');
 
-      // отправляем данные в бота
+    if (!inTG) {
+      alert('Не в Telegram: отправка имитирована.\n' + json);
+      return;
+    }
+
+    try {
+      // Безопасные вызовы API с try/catch
+      try { tg.MainButton.showProgress(true); } catch(e) {}
+      try { tg.HapticFeedback?.impactOccurred('light'); } catch(e) {}
+
+      // Ключевая строка — отправка данных боту:
       tg.sendData(json);
 
-      // показываем поп-ап и закрываем WebApp, чтобы ты сразу увидел ответ бота
-      tg.showPopup({
-        title: 'Отправлено',
-        message: `Сохранили: ${count} за ${dateStr}. Сейчас вернёмся в чат.`,
-        buttons: [{ type: 'ok' }]
-      });
+      // Визуальная обратная связь
+      try {
+        tg.showPopup({
+          title: 'Отправлено',
+          message: `Сохранили: ${count} за ${dateStr}.`,
+          buttons: [{ type: 'ok' }]
+        });
+      } catch(e) {}
 
-      setTimeout(() => {
-        try { tg.MainButton.hideProgress(); } catch(e){}
-        tg.close(); // вернёт в чат с ботом, где уже будет ответ
-      }, 500);
-    } else {
-      alert('Не в Telegram: отправка имитирована.\n' + json);
+      // Не закрываем автоматически, чтобы убедиться, что всё отработало.
+      // Если хочешь автозакрытие — раскомментируй:
+      // setTimeout(() => { try { tg.close(); } catch(e) {} }, 500);
+
+      try { tg.MainButton.hideProgress(); } catch(e) {}
+      toast('Готово ✔');
+    } catch (err) {
+      alert('Ошибка при отправке: ' + (err?.message || err));
     }
   }
+
+  // Привязки (если вдруг их нет ниже по файлу — добавь)
+  document.getElementById('save').onclick = send;
+  const sf = document.getElementById('saveFooter');
+  if (sf) sf.onclick = send;
+  if (inTG) tg.onEvent('mainButtonClicked', send);
+
+  // Доп. отладка JS-ошибок прямо на экране
+  window.onerror = (msg, src, line, col, err) => {
+    alert('JS error: ' + msg + '\n' + src + ':' + line + ':' + col);
+  };
   </script>
 </body>
 </html>
