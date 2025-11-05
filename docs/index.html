@@ -193,35 +193,33 @@
     document.getElementById('reset').onclick = () => update(0);
 
     // Отправка
-    function send(){
-      const payload = { date: dateStr, count };
-      const json = JSON.stringify(payload);
-      if (inTG) {
-        tg.sendData(json);
-        tg.HapticFeedback?.notificationOccurred('success');
-      } else {
-        alert('Не в Telegram: отправка имитирована.\n' + json);
-      }
-    }
-    document.getElementById('save').onclick = send;
-    document.getElementById('saveFooter').onclick = send;
+     function send(){
+    const payload = { date: dateStr, count };
+    const json = JSON.stringify(payload);
 
-    // Telegram MainButton как основная CTA
     if (inTG) {
-      tg.MainButton.setText('Сохранить');
-      tg.MainButton.enable();
-      tg.MainButton.show();
-      tg.onEvent('mainButtonClicked', send);
-      // Скрыть нижний футер, чтобы не дублировать CTA
-      document.getElementById('footer').style.display = 'none';
-    }
+      // визуальная обратная связь
+      try { tg.MainButton.showProgress(true); } catch(e){}
+      tg.HapticFeedback?.impactOccurred('light');
 
-    // Локальное сохранение на день (приятный бонус)
-    const key = `habit-counter:${dateStr}`;
-    try { update(Number(localStorage.getItem(key) || 0)); } catch(e){}
-    ['click','touchend'].forEach(evt => document.addEventListener(evt, () => {
-      try { localStorage.setItem(key, String(count)); } catch(e){}
-    }));
+      // отправляем данные в бота
+      tg.sendData(json);
+
+      // показываем поп-ап и закрываем WebApp, чтобы ты сразу увидел ответ бота
+      tg.showPopup({
+        title: 'Отправлено',
+        message: `Сохранили: ${count} за ${dateStr}. Сейчас вернёмся в чат.`,
+        buttons: [{ type: 'ok' }]
+      });
+
+      setTimeout(() => {
+        try { tg.MainButton.hideProgress(); } catch(e){}
+        tg.close(); // вернёт в чат с ботом, где уже будет ответ
+      }, 500);
+    } else {
+      alert('Не в Telegram: отправка имитирована.\n' + json);
+    }
+  }
   </script>
 </body>
 </html>
